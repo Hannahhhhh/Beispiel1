@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Radfahren im Salzburger Land</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+	<link type="text/css" rel="stylesheet" href="style1.css" />
+
+    <!-- GeoJSON Datenskripts -->
+    <script src="radwegLinien.json.js"></script>
+    <script src="Burgen.json.js"></script>
+    <script src="Naturpark.json.js"></script>
+    
+    <script src="leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="MarkerCluster.css" />
+    <link rel="stylesheet" href="MarkerCluster.Default.css" />
+
+    <!--  TODO: GeoJSON Datenskript für Märkte/Flächen einbinden - https://www.data.gv.at/suche/?search-term=wien+m%C3%A4rkte&searchIn=catalog -->
+
+    <style>
+
+
+        #sMap {
+            width: 900px;
+            height: 600px;
+            border: 1px solid black;
+            margin: auto;
+        }
+		
+    </style>
+</head>
+
+<body>
+    <h1>Radln im Salzburger Land</h1>
+
+    <div id="sMap"></div>
+
+    <script>
+        // WMTS-Layer definieren - Quelle: http://www.basemap.at/wmts/1.0.0/WMTSCapabilities.xml
+
+        // TODO: WMTS-Layer Wien, Luftbild 1956 hinzufügen - Quelle: http://maps.wien.gv.at/wmts/1.0.0/WMTSCapabilities.xml (nach lb1956 suchen und dann wie bei basemap.at die ResourceURL anpassen, Datenquelle: Stadt Wien – data.wien.gv.at)
+        var layers = {
+            geolandbasemap: L.tileLayer("https://{s}.wien.gv.at/basemap/geolandbasemap/normal/google3857/{z}/{y}/{x}.png", {
+                subdomains: ['maps', 'maps1', 'maps2', 'maps3', 'maps4'],
+                attribution: 'Datenquelle: <a href="http://www.basemap.at/">basemap.at</a>'
+            }),
+            bmapgrau: L.tileLayer("https://{s}.wien.gv.at/basemap/bmapgrau/normal/google3857/{z}/{y}/{x}.png", {
+                subdomains: ['maps', 'maps1', 'maps2', 'maps3', 'maps4'],
+                attribution: 'Datenquelle: <a href="http://www.basemap.at/">basemap.at</a>'
+            }),
+            bmapoverlay: L.tileLayer("https://{s}.wien.gv.at/basemap/bmapoverlay/normal/google3857/{z}/{y}/{x}.png", {
+                subdomains: ['maps', 'maps1', 'maps2', 'maps3', 'maps4'],
+                attribution: 'Datenquelle: <a href="http://www.basemap.at/">basemap.at</a>'
+            }),
+            bmaphidpi: L.tileLayer("https://{s}.wien.gv.at/basemap/bmaphidpi/normal/google3857/{z}/{y}/{x}.jpeg", {
+                subdomains: ['maps', 'maps1', 'maps2', 'maps3', 'maps4'],
+                attribution: 'Datenquelle: <a href="http://www.basemap.at/">basemap.at</a>'
+            }),
+            bmaporthofoto30cm: L.tileLayer("https://{s}.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg", {
+                subdomains: ['maps', 'maps1', 'maps2', 'maps3', 'maps4'],
+                attribution: 'Datenquelle: <a href="http://www.basemap.at/">basemap.at</a>'
+            }),
+            osm: L.tileLayer("http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                subdomains: ['a', 'b', 'c'],
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+			}),
+
+        };
+
+        // Karte definieren und Ausschnitt setzen
+        var map = L.map('sMap', {
+            layers: [layers.bmapgrau],
+            center: [47.802904,12.9863902],
+            zoom: 10
+        });
+		
+        
+        // Maßstab hinzufügen
+        L.control.scale({
+            maxWidth: 200,
+            metric: true,
+            imperial: false
+        }).addTo(map);
+		
+		// Farbige Flächen der Naturparke mit Popup hinzufügen
+        var Flaechennaturpark = L.geoJSON(window.naturparkFlaeche, {
+            onEachFeature : function (feature, layer) {
+                var markup = '<h2>' + 'Naturpark' + feature.properties.NAME + '</h2>';
+				markup += '<a href="https://www.naturparke.at/naturparke/salzburg/">Homepage Naturparke</a>';
+                layer.bindPopup(markup);
+            },
+            style : function (feature) {
+                var fill = 'green';
+				return {
+                    color : fill,
+					}
+            }
+        }).addTo(map);
+        
+		// Radwege mit Pop-up und Farbe definieren
+        var Linienradwege = L.geoJSON(window.radwegLinien, {
+            onEachFeature : function (feature, layer) {
+                var markup = '<h2>' + feature.properties.BEZEICHNUN + '</h2>';
+				markup += '<li>' + 'Streckenverlauf: ' + feature.properties.Bedeutung + '</li>';
+				markup += '<li>' + feature.properties.Homepage + '</li>';
+                layer.bindPopup(markup);
+            },
+            style : function (feature) {
+                var fill = 'red';
+				return {
+                    color : fill,
+					}
+            }
+        }).addTo(map);
+        // console.log(L.markerClusterGroup)
+		
+		//Cluster für Burgen definieren 
+        var clusterGruppeburg = L.markerClusterGroup().addTo(map);
+        
+        var Punkteburgen = L.geoJSON(window.burgenPunkte,{
+		        onEachFeature: function(feature, layer) {
+					/*return L.marker(latlng, {
+		                icon: L.icon({
+                        iconSize: [20, 20],
+                        iconAnchor: [1, 1],
+                        popupAnchor: [1, 1],
+                        iconUrl: 'http://www.data.wien.gv.at/icons/burgschlossogdsichtbar.png'
+                    })
+				});*/
+
+				var markup = '<h2>' + feature.properties.Name + '</h2>';
+				markup += '<li>' + 'Adresse: ' + feature.properties.Adresse + '</li>';
+				markup += '<li>' + 'Ort: ' + feature.properties.Ort + '</li>';
+				markup += '<li>' + 'Homepage: ' + feature.properties.DBLink + '</li>';
+
+                layer.bindPopup(markup);
+				}
+			}).addTo(clusterGruppeburg);			
+		
+        
+         L.control.layers({
+            "basemap.at - STANDARD": layers.geolandbasemap,
+            "basemap.at - GRAU": layers.bmapgrau,
+            "basemap.at - OVERLAY": layers.bmapoverlay,
+            "basemap.at - HIGH-DPI": layers.bmaphidpi,
+            "basemap.at - ORTHOFOTO": layers.bmaporthofoto30cm,
+            "OpenStreetMap": layers.osm,
+        }, {
+            "Radwege": Linienradwege,
+            "Burgen und Schlösser": clusterGruppeburg,
+            "Naturparks": Flaechennaturpark,
+        }).addTo(map)
+	
+		</script>	
+
+		<!-- ACHTUNG NOCH ÜBERPRÜFEN -->
+	<h2> Fahrradurlaub im Salzburger Land </h2>
+	<p class="navigation"> Für die Stadt Salzburg haben wir <a href="indexstadt.html">hier</a> noch einige Informationen für Sie zusammengetragen.
+	</p>
+	<p class="author">Hannah Geuder, Christina Standl</p>
+	
+	<nav>
+	<a class="previous" href="burgen.html">Burgen und Schlösser Salzburg</a>
+	<span class="current">Radfahrland Salzburg</span>
+	<a class="next" href="Naturparks.html">Naturparks in Salzburg</a>
+	</nav> 
+	
+	<h3>Quelle Geodaten</h3>
+    <p class="quellen"> Stadt Wien – <a href="http://data.wien.gv.at/">data.wien.gv.at</a><br>
+    <a href="">Web Feature Service (WFS) - Wien</a>
+	<br> CC BY 3.0 Österreich<br>
+    </p>
+
+
+    </body>
